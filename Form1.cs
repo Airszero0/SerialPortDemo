@@ -14,18 +14,15 @@ namespace serialPortTest
 {
     public partial class Form1 : Form
     {
-        private string light1 = string.Empty;   //光照
-        private double Temp = 0.0;     //温度
-        private double Hum = 0.0;      //湿度
         private static int sb = 0;
         private static int rb = 0;
-
+        //通讯连接指令
         private static string connectCom = "01 06 00 00 00 00 00 00 00 00 00 00";
-
+        //温湿度数据采集指令
         private static string humAndTempCom = "03 03 01 00 00 00 00 00 00 00 00 00";
-
+        //光照采集指令
         private static string lightCom = "01 03 02 00 00 00 00 00 00 00 00 00";
-
+        //光照设置指令
         private static string lightSetCom = "03 05 01 01 01 01 01 00 00 00 00 00";
 
         public Form1()
@@ -257,13 +254,6 @@ namespace serialPortTest
 
         private StringBuilder stringBu = new StringBuilder();
 
-
-        //private void ConnectToServer()
-        //{
-        //    string _connectCom = connectCom + CRCHelper.ToModbusCRC16(connectCom, true);
-
-        //    SendMessage(_connectCom);
-        //}
 
         /// <summary>
         /// 发送数据
