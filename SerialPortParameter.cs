@@ -26,7 +26,7 @@ namespace serialPortTest
                 comboBox1.Items.Add(name);
             }
             comboBox1.SelectedIndex = 0;
-            comboBox2.SelectedIndex = 7;
+            comboBox2.SelectedIndex = 1;
             comboBox3.SelectedIndex = 0;
             comboBox4.SelectedIndex = 3;
             comboBox5.SelectedIndex = 1;

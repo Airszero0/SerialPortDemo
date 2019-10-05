@@ -54,6 +54,7 @@
             this.checkBox4 = new System.Windows.Forms.CheckBox();
             this.label27 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.label45 = new System.Windows.Forms.Label();
             this.checkBox7 = new System.Windows.Forms.CheckBox();
             this.SendMsgBox = new System.Windows.Forms.RichTextBox();
             this.label13 = new System.Windows.Forms.Label();
@@ -126,7 +127,7 @@
             this.splitContainer5 = new System.Windows.Forms.SplitContainer();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.timer2 = new System.Windows.Forms.Timer(this.components);
-            this.label45 = new System.Windows.Forms.Label();
+            this.button3 = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             this.groupBox7.SuspendLayout();
             this.panel2.SuspendLayout();
@@ -438,6 +439,14 @@
             this.groupBox2.TabIndex = 25;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "数据发送区";
+            // 
+            // label45
+            // 
+            this.label45.AutoSize = true;
+            this.label45.Location = new System.Drawing.Point(11, 146);
+            this.label45.Name = "label45";
+            this.label45.Size = new System.Drawing.Size(0, 12);
+            this.label45.TabIndex = 15;
             // 
             // checkBox7
             // 
@@ -867,6 +876,7 @@
             // 
             this.textBox17.Location = new System.Drawing.Point(66, 73);
             this.textBox17.Name = "textBox17";
+            this.textBox17.PasswordChar = '*';
             this.textBox17.Size = new System.Drawing.Size(179, 21);
             this.textBox17.TabIndex = 35;
             // 
@@ -930,6 +940,7 @@
             // 
             // groupBox4
             // 
+            this.groupBox4.Controls.Add(this.button3);
             this.groupBox4.Controls.Add(this.label35);
             this.groupBox4.Controls.Add(this.label34);
             this.groupBox4.Controls.Add(this.textBox13);
@@ -1011,6 +1022,7 @@
             // 
             this.textBox11.Location = new System.Drawing.Point(67, 95);
             this.textBox11.Name = "textBox11";
+            this.textBox11.PasswordChar = '*';
             this.textBox11.Size = new System.Drawing.Size(178, 21);
             this.textBox11.TabIndex = 34;
             // 
@@ -1018,6 +1030,7 @@
             // 
             this.textBox10.Location = new System.Drawing.Point(67, 57);
             this.textBox10.Name = "textBox10";
+            this.textBox10.PasswordChar = '*';
             this.textBox10.Size = new System.Drawing.Size(178, 21);
             this.textBox10.TabIndex = 33;
             // 
@@ -1181,13 +1194,15 @@
             // 
             this.timer2.Tick += new System.EventHandler(this.Timer2_Tick);
             // 
-            // label45
+            // button3
             // 
-            this.label45.AutoSize = true;
-            this.label45.Location = new System.Drawing.Point(11, 146);
-            this.label45.Name = "label45";
-            this.label45.Size = new System.Drawing.Size(0, 12);
-            this.label45.TabIndex = 15;
+            this.button3.Location = new System.Drawing.Point(410, 57);
+            this.button3.Name = "button3";
+            this.button3.Size = new System.Drawing.Size(68, 21);
+            this.button3.TabIndex = 41;
+            this.button3.Text = "公式编辑";
+            this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.Button3_Click);
             // 
             // Form1
             // 
@@ -1345,6 +1360,7 @@
         private System.Windows.Forms.Label label42;
         private System.Windows.Forms.Timer timer2;
         private System.Windows.Forms.Label label45;
+        private System.Windows.Forms.Button button3;
     }
 }
 

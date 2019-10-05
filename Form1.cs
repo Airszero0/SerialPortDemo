@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
@@ -56,20 +57,50 @@ namespace serialPortTest
             textBox14.Text = "6";
             textBox15.Text = "8";
 
-            textBox10.Text = "(XH*256+XL)/100";
-            textBox11.Text = "(YH*256+YL)/100";
-            textBox17.Text = "(ZH*256+ZL)/100";
             textBox12.Text = "摄氏度";
             textBox13.Text = "%";
             textBox16.Text = "Lux";
             label42.Text = "摄氏度";
             label43.Text = "%";
             label44.Text = "Lux";
-
+            GetMt();
             timer2.Start();
 
-            newestHaT = "02 03 01 06 56 78 46 00 00 00 00 00 38 87";
-            newestLight = "02 03 02 78 90 00 00 00 00 00 00 00 38 87";
+            //newestHaT = "02 03 01 06 56 78 46 00 00 00 00 00 38 87";
+            //newestLight = "02 03 02 78 90 00 00 00 00 00 00 00 38 87";
+        }
+
+        private static string tb10 = string.Empty;
+        private static string tb11 = string.Empty;
+        private static string tb17 = string.Empty;
+
+        private void GetMt()
+        {
+            string content = string.Empty;
+            if (File.Exists(Auth.path))
+            {
+                content = File.ReadAllText(Auth.path);
+            }
+            string _afterContent = Helper.symmetry_Decode(content, Auth.key);
+            _afterContent = _afterContent.TrimEnd(';');
+            foreach (var item in _afterContent.Split(';'))
+            {
+                if (item.Contains("Temp"))
+                {
+                    tb10 = item.Trim().Split(':')[1];
+                    textBox10.Text = tb10;
+                }
+                if (item.Contains("Hum"))
+                {
+                    tb11 = item.Trim().Split(':')[1];
+                    textBox11.Text = tb11;
+                }
+                if (item.Contains("Lig"))
+                {
+                    tb17 = item.Trim().Split(':')[1];
+                    textBox17.Text = tb17;
+                }
+            }
         }
 
         /// <summary>
@@ -196,13 +227,13 @@ namespace serialPortTest
         private static object _lock = new object();
 
         //最新温湿度采集数据
-        private static string newestHaT = string.Empty;
+        private string newestHaT = string.Empty;
         //最新光照采集数据
-        private static string newestLight = string.Empty;
+        private string newestLight = string.Empty;
         //最新光照设置返回数据
-        private static string newestLightSetting = string.Empty;
+        private string newestLightSetting = string.Empty;
 
-        private static bool sendMessageLock = false;
+        private bool sendMessageLock = false;
 
         /// <summary>
         /// 串口接收事件处理
@@ -232,8 +263,10 @@ namespace serialPortTest
                     while (_currentSerialPort.BytesToRead > 0);
 
                     if (strBuild.Length >= 28)
-                    {
-                        checkReturnData(strBuild, _currentSendCom);
+                     {
+                        if (!checkReturnData(strBuild, _currentSendCom)) {
+                            sendMessageLock = false;
+                        }
                     }
                     this.BeginInvoke(new EventHandler(delegate
                     {
@@ -241,6 +274,8 @@ namespace serialPortTest
                         {
                             ReceivingBox.Text += complatedReturnMsg + Environment.NewLine;
                             complatedReturnMsg = string.Empty;
+                            label35.Text = newestHaT;
+                            label41.Text = newestLight;
                             sendMessageLock = false;
                             strBuild.Clear();
                         }
@@ -277,17 +312,20 @@ namespace serialPortTest
                 if (_currentSerialPort != null && _currentSerialPort.IsOpen)
                 {
                     string msgtext = SendMsgBox.Text.Replace(" ", "");
+                    if (string.IsNullOrWhiteSpace(msgtext))
+                        msgtext = msg.Trim().Replace(" ","");
+
                     label45.Text = "已发送: " + msgtext;
                     int sLong = 0;
 
                     sLong = (msgtext.Length - msgtext.Length % 2) / 2;
 
-                    byte[] hexBytes = new byte[1];
+                    byte[] hexBytes = new byte[sLong];
                     for (int i = 0; i < sLong; i++)
                     {
-                        hexBytes[0] = Convert.ToByte(msgtext.Substring(i * 2, 2), 16);
-                        _currentSerialPort.Write(hexBytes, 0, 1);
+                        hexBytes[i] = Convert.ToByte(msgtext.Substring(i * 2, 2), 16);
                     }
+                    _currentSerialPort.Write(hexBytes, 0, sLong);
                     sLong = _currentSerialPort.BytesToWrite;
                     this.BeginInvoke(new EventHandler(delegate
                     {
@@ -344,6 +382,7 @@ namespace serialPortTest
             {
                 if (!timerStatus)
                 {
+                    timerStatus = true;
                     button5.Text = "点击关闭连续采集";
                     humAndTemp = string.IsNullOrWhiteSpace(textBox2.Text) ? "" : textBox2.Text;
                     if (!string.IsNullOrWhiteSpace(humAndTemp))
@@ -364,6 +403,7 @@ namespace serialPortTest
                     button5.Text = "点击连续采集数据";
                     timer1.Stop();
                     timer1.Enabled = false;
+                    timerStatus = false;
                 }
             }
             else {
@@ -373,7 +413,9 @@ namespace serialPortTest
                     if (checkBox7.Checked)
                     {
                         if (sendMsg.Trim().Replace(" ", "").Length < 28) {
-                            sendMsg = sendMsg + CRCHelper.ToModbusCRC16(sendMsg,true);
+                            string crc16 = CRCHelper.ToModbusCRC16(sendMsg, true);
+                            sendMsg = sendMsg + crc16;
+                            SendMsgBox.Text = SendMsgBox.Text + crc16;
                         }
                     }
                     SendMessage(sendMsg);
@@ -390,19 +432,21 @@ namespace serialPortTest
         private bool checkReturnData(StringBuilder stringBuilder,DataTypeEnum dataTypeEnum)
         {
             bool comComplateed = false;
+            string failMsg = string.Empty;
             if (stringBuilder.Length > 14) {
                 string msg = stringBuilder.ToString();
                 if (dataTypeEnum == DataTypeEnum.HandT)
                 {
                     //温湿度
-                    if (msg.StartsWith("020301") || msg.IndexOf("020301")>0)
+                    if (msg.StartsWith("020301") || msg.IndexOf("020301") > 0)
                     {
                         //成功获取
-                        msg = msg.Substring(msg.IndexOf("020301")+6);
-                        if (!string.IsNullOrWhiteSpace(msg) && msg.Length>=22) {
-                            complatedReturnMsg = "020301" + msg.Substring(0,22);
-                            string checkData = complatedReturnMsg.Substring(complatedReturnMsg.Length - 4 );
-                            string subData1 = complatedReturnMsg.Substring(0,complatedReturnMsg.Length - 4);
+                        msg = msg.Substring(msg.IndexOf("020301") + 6);
+                        if (!string.IsNullOrWhiteSpace(msg) && msg.Length >= 22)
+                        {
+                            complatedReturnMsg = "020301" + msg.Substring(0, 22);
+                            string checkData = complatedReturnMsg.Substring(complatedReturnMsg.Length - 4);
+                            string subData1 = complatedReturnMsg.Substring(0, complatedReturnMsg.Length - 4);
                             if (checkData.Equals(CRCHelper.ToModbusCRC16(subData1, true)))
                             {
                                 newestHaT = complatedReturnMsg;
@@ -411,18 +455,18 @@ namespace serialPortTest
                             else
                                 complatedReturnMsg = string.Empty;
                         }
-                    }                
+                    }                   
                 }
                 else if (dataTypeEnum == DataTypeEnum.Light)
                 {
                     //光照
-                    if (msg.StartsWith("010302") || msg.IndexOf("010302") > 0)
+                    if (msg.StartsWith("020302") || msg.IndexOf("020302") > 0)
                     {
                         //成功获取
-                        msg = msg.Substring(msg.IndexOf("010302") + 6);
+                        msg = msg.Substring(msg.IndexOf("020302") + 6);
                         if (!string.IsNullOrWhiteSpace(msg) && msg.Length >= 22)
                         {
-                            complatedReturnMsg = "010302" + msg.Substring(0, 22);
+                            complatedReturnMsg = "020302" + msg.Substring(0, 22);
 
                             string checkData = complatedReturnMsg.Substring(complatedReturnMsg.Length - 4);
                             string subData1 = complatedReturnMsg.Substring(0, complatedReturnMsg.Length - 4);
@@ -436,7 +480,8 @@ namespace serialPortTest
                         }
                     }
                 }
-                else if (dataTypeEnum == DataTypeEnum.Connection) {
+                else if (dataTypeEnum == DataTypeEnum.Connection)
+                {
                     //通信状态
                     if (msg.StartsWith("0206") || msg.IndexOf("0206") > 0)
                     {
@@ -447,7 +492,7 @@ namespace serialPortTest
                             complatedReturnMsg = "0206" + msg.Substring(0, 24);
                             string checkData = complatedReturnMsg.Substring(complatedReturnMsg.Length - 4);
                             string subData1 = complatedReturnMsg.Substring(0, complatedReturnMsg.Length - 4);
-                            if (checkData.Equals(CRCHelper.ToModbusCRC16(subData1, true)))                            
+                            if (checkData.Equals(CRCHelper.ToModbusCRC16(subData1, true)))
                                 comComplateed = true;
                             else
                                 complatedReturnMsg = string.Empty;
@@ -467,7 +512,8 @@ namespace serialPortTest
                             complatedReturnMsg = "0205" + msg.Substring(0, 24);
                             string checkData = complatedReturnMsg.Substring(complatedReturnMsg.Length - 4);
                             string subData1 = complatedReturnMsg.Substring(0, complatedReturnMsg.Length - 4);
-                            if (checkData.Equals(CRCHelper.ToModbusCRC16(subData1, true))) {
+                            if (checkData.Equals(CRCHelper.ToModbusCRC16(subData1, true)))
+                            {
                                 newestLightSetting = complatedReturnMsg;
                                 comComplateed = true;
                             }
@@ -476,6 +522,12 @@ namespace serialPortTest
                         }
                     }
                 }
+            }
+            if (comComplateed)
+            {
+                //this.BeginInvoke(new EventHandler(delegate {
+                //    this.ReceivingBox.Text += stringBuilder.ToString();
+                //}));
             }
             return comComplateed;
         }
@@ -495,6 +547,8 @@ namespace serialPortTest
                 AutoPostCheckSetFalse();
             else
                 AutoPostCheckSetEnable();
+            if (checkBox3.Checked)
+                checkBox4.Checked = false;
 
         }
 
@@ -528,6 +582,8 @@ namespace serialPortTest
                 AutoPostCheckSetFalse();
             else
                 AutoPostCheckSetEnable();
+            if (checkBox4.Checked)
+                checkBox3.Checked = false;
         }
 
         private void CheckBox5_CheckedChanged(object sender, EventArgs e)
@@ -535,6 +591,7 @@ namespace serialPortTest
             if (checkBox5.Checked)
             {
                 SendMsgBox.Text = connectCom;
+                button5.Text = "发送";
                 checkBox1.Checked = false;
                 checkBox2.Checked = false;
                 checkBox6.Checked = false;
@@ -545,7 +602,9 @@ namespace serialPortTest
         {
             if (checkBox2.Checked)
             {
+                _currentSendCom = DataTypeEnum.Light;
                 SendMsgBox.Text = lightCom;
+                button5.Text = "发送";
                 checkBox1.Checked = false;
                 checkBox5.Checked = false;
                 checkBox6.Checked = false;
@@ -556,7 +615,9 @@ namespace serialPortTest
         {
             if (checkBox6.Checked)
             {
+                _currentSendCom = DataTypeEnum.SettingLight;
                 SendMsgBox.Text = lightSetCom;
+                button5.Text = "发送";
                 checkBox1.Checked = false;
                 checkBox2.Checked = false;
                 checkBox5.Checked = false;
@@ -567,7 +628,9 @@ namespace serialPortTest
         {
             if (checkBox1.Checked)
             {
+                _currentSendCom = DataTypeEnum.HandT;
                 SendMsgBox.Text = humAndTempCom;
+                button5.Text = "发送";
                 checkBox5.Checked = false;
                 checkBox2.Checked = false;
                 checkBox6.Checked = false;
@@ -604,9 +667,9 @@ namespace serialPortTest
 
         private void Timer2_Tick(object sender, EventArgs e)
         {
-            string temExpression = textBox10.Text;
-            string humExpression = textBox11.Text;
-            string lightExpression =textBox17.Text;
+            string temExpression = tb10;
+            string humExpression = tb11;
+            string lightExpression = tb17;
 
             if (!string.IsNullOrWhiteSpace(newestHaT)) {
                 newestHaT = newestHaT.Trim().Replace(" ","") ;
@@ -621,7 +684,7 @@ namespace serialPortTest
                     }
                     //计算温度
                     string _xh = newestHaT.Substring(_xhIndex, 2);
-
+                    int int_xh = Convert.ToInt32(_xh,16);
                     if (!string.IsNullOrWhiteSpace(textBox5.Text))
                     {
                         if (int.TryParse(textBox5.Text, out _xlIndex))
@@ -631,9 +694,9 @@ namespace serialPortTest
                     }
 
                     string _xl = newestHaT.Substring(_xlIndex, 2);
-
-                    temExpression = temExpression.Replace("XH", _xh);
-                    temExpression = temExpression.Replace("XL",_xl);
+                    int int_xl = Convert.ToInt32(_xl, 16);
+                    temExpression = temExpression.Replace("XH", int_xh.ToString());
+                    temExpression = temExpression.Replace("XL", int_xl.ToString());
 
                     try
                     {
@@ -661,7 +724,7 @@ namespace serialPortTest
                     }
 
                     string _yh = newestHaT.Substring(_yhIndex, 2);
-
+                    int int_yh = Convert.ToInt32(_yh,16);
                     if (!string.IsNullOrWhiteSpace(textBox9.Text))
                     {
                         if (int.TryParse(textBox9.Text, out _ylIndex))
@@ -670,18 +733,18 @@ namespace serialPortTest
                         }
                     }
                     string _yl = newestHaT.Substring(_ylIndex, 2);
-
-                    humExpression = humExpression.Replace("YH", _yh);
-                    humExpression = humExpression.Replace("YL", _yl);
+                    int int_yl = Convert.ToInt32(_yl, 16);
+                    humExpression = humExpression.Replace("YH", int_yh.ToString());
+                    humExpression = humExpression.Replace("YL", int_yl.ToString());
 
                     try
                     {
                         string _temValue = CalculateValue(humExpression);
                         label20.Text = _temValue;
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        label20.Text = "错误" ;
+                        label20.Text = "错误" +ex.Message;
                     }
                    
                 }             
@@ -703,8 +766,8 @@ namespace serialPortTest
                         }
                     }
                     //计算光照
-                    string _zh = newestHaT.Substring(_zhIndex, 2);
-
+                    string _zh = newestLight.Substring(_zhIndex, 2);
+                    int int_zh = Convert.ToInt32(_zh, 16);
                     if (!string.IsNullOrWhiteSpace(textBox15.Text))
                     {
                         if (int.TryParse(textBox15.Text, out _zlIndex))
@@ -713,22 +776,29 @@ namespace serialPortTest
                         }
                     }
 
-                    string _zl = newestHaT.Substring(_zlIndex, 2);
+                    string _zl = newestLight.Substring(_zlIndex, 2);
+                    int int_zl = Convert.ToInt32(_zl, 16);
 
-                    lightExpression = lightExpression.Replace("ZH", _zh);
-                    lightExpression = lightExpression.Replace("ZL", _zl);
+                    lightExpression = lightExpression.Replace("ZH", int_zh.ToString());
+                    lightExpression = lightExpression.Replace("ZL", int_zl.ToString());
 
                     try
                     {
                         string _temValue = CalculateValue(lightExpression);
                         label21.Text = _temValue;
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        label21.Text = "错误";
+                        label21.Text = "错误" + ex.Message;
                     }                
                 }
             }
+        }
+
+        private void Button3_Click(object sender, EventArgs e)
+        {
+            (new Auth()).ShowDialog();
+            GetMt();
         }
     }
 }
